@@ -6,25 +6,40 @@ function startserver() {
     let allsockets = [];
     wss.on("connection", (socket) => {
         //pushing every socket to this array so when we send message it broadcast to evey user
-        allsockets.push(socket);
-        usercount = usercount + 1;
         console.log("user connected", usercount);
         //sending the message from client
         socket.on("message", (message) => {
-            console.log(message.toString());
-            //send message from server and broadcasting to all clients
-            //   for(let i=0;i<allsockets.length;i++)
-            //   {
-            //     const s =allsockets[i];//here we get all sockets one by one
-            //     s.send(message.toString()+"sent from the server");
-            //   }
-            //send message from server and broadcasting to all clients
-            for (const s of allsockets) {
-                s.send(message.toString() + " sent from server");
+            //message is not object it is string so string is converted to object
+            //@ts-ignore
+            const parsedmessage = JSON.parse(message);
+            if (parsedmessage.type === 'join') {
+                allsockets.push({
+                    socket,
+                    room: parsedmessage.payload.roomId
+                });
             }
-            socket.on("close", () => {
-                allsockets = allsockets.filter((x) => x != socket);
-            });
+            //
+            // {
+            //     "type":"join",
+            //      payload:{
+            //         "roomId":"123"
+            //     }
+            // }
+            if (parsedmessage.type === "chat") {
+                let currentuserroom = null;
+                //finding currentusers room 
+                for (const val of allsockets) {
+                    if (val.socket == socket) {
+                        currentuserroom = val.room;
+                    }
+                }
+                //if currentroom matches send the message in that room
+                for (const val of allsockets) {
+                    if (val.room == currentuserroom) {
+                        val.socket.send(parsedmessage.payload.message);
+                    }
+                }
+            }
         });
     });
 }
